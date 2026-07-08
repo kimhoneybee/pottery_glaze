@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>釉色實驗室 — 坯體 × 釉料呈色模擬</title>
+<style>
+  :root{
+    --bg:#f5f1ea; --panel:#fffdf9; --ink:#3d3229; --sub:#7a6f63;
+    --line:#e3dbcf; --accent:#8a6f4d; --accent2:#5a7d6a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft JhengHei","PingFang TC","Noto Sans TC",sans-serif;background:var(--bg);color:var(--ink);line-height:1.7}
+  header{padding:28px 24px 18px;text-align:center;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#efe8dc,#f5f1ea)}
+  header h1{font-size:26px;letter-spacing:4px}
+  header p{color:var(--sub);font-size:13px;margin-top:6px}
+  nav{display:flex;justify-content:center;gap:8px;padding:14px;flex-wrap:wrap;position:sticky;top:0;background:rgba(245,241,234,.95);backdrop-filter:blur(4px);z-index:10;border-bottom:1px solid var(--line)}
+  nav button{border:1px solid var(--line);background:var(--panel);padding:8px 20px;border-radius:20px;cursor:pointer;font-size:14px;font-family:inherit;color:var(--ink)}
+  nav button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  main{max-width:1080px;margin:0 auto;padding:24px 16px 80px}
+  .tab{display:none}.tab.show{display:block}
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:20px}
+  @media(max-width:860px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px}
+  .card h3{font-size:15px;margin-bottom:10px;color:var(--accent);letter-spacing:2px}
+  label{display:block;font-size:13px;color:var(--sub);margin:10px 0 4px}
+  select,input[type=range]{width:100%}
+  select{padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-family:inherit;font-size:14px}
+  .rowval{display:flex;justify-content:space-between;font-size:13px}
+  .rowval b{color:var(--ink)}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg button{flex:1;min-width:70px;padding:7px 4px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px}
+  .seg button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  /* tile preview */
+  .tile-wrap{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .tile{width:min(340px,80vw);height:min(340px,80vw);border-radius:50% 50% 48% 48%/60% 60% 42% 42%;box-shadow:0 18px 40px rgba(60,45,30,.25), inset 0 -14px 30px rgba(0,0,0,.12), inset 0 10px 24px rgba(255,255,255,.25);position:relative;transition:background .4s}
+  .tile::after{content:"";position:absolute;left:18%;top:10%;width:34%;height:22%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(255,255,255,var(--gloss,.45)),transparent 70%);filter:blur(2px)}
+  .tile .foot{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:44%;height:12px;border-radius:50%;background:var(--footcolor,#d8cbb5);box-shadow:0 2px 5px rgba(0,0,0,.2)}
+  .swatchbar{display:flex;gap:0;border-radius:10px;overflow:hidden;border:1px solid var(--line);width:100%;height:44px}
+  .swatchbar div{flex:1}
+  .notes{font-size:14px}
+  .notes li{margin:8px 0 8px 18px}
+  .notes .warn{color:#a04020}
+  .notes .chem{color:var(--accent2)}
+  .hexline{font-size:12px;color:var(--sub);text-align:center}
+  /* blend tab */
+  .blendrow{display:grid;grid-template-columns:1fr 80px 1fr;gap:12px;align-items:center}
+  .blendrow .endpt{height:90px;border-radius:12px;border:1px solid var(--line)}
+  .blendstrip{display:flex;height:64px;border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-top:14px}
+  .blendstrip div{flex:1;position:relative;cursor:pointer}
+  .blendstrip div span{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--sub)}
+  .bigmix{height:120px;border-radius:14px;border:1px solid var(--line);margin-top:34px;display:flex;align-items:flex-end;justify-content:center;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5);padding:10px;font-size:14px}
+  /* library */
+  .lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .lib .g{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .15s}
+  .lib .g:hover{transform:translateY(-3px)}
+  .lib .g .c{height:110px}
+  .lib .g .t{padding:10px 12px}
+  .lib .g .t b{font-size:15px}
+  .lib .g .t p{font-size:12px;color:var(--sub);margin-top:3px}
+  dialog{border:none;border-radius:16px;max-width:520px;width:92vw;padding:0;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+  dialog .dc{height:140px}
+  dialog .db{padding:18px 22px}
+  dialog h2{font-size:20px;margin-bottom:8px}
+  dialog table{width:100%;font-size:13px;border-collapse:collapse;margin-top:8px}
+  dialog td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+  dialog td:first-child{color:var(--sub);white-space:nowrap;width:78px}
+  dialog button{margin:0 22px 18px;padding:8px 18px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font-family:inherit}
+  footer{ text-align:center;color:var(--sub);font-size:12px;padding:20px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>釉 色 實 驗 室</h1>
+  <p>坯體 × 基釉 × 呈色氧化物 × 燒成氣氛 — 即時呈色模擬與化學解說（示意色，非實燒照片）</p>
+</header>
+<nav>
+  <button class="active" data-tab="sim">呈色模擬器</button>
+  <button data-tab="blend">混釉實驗</button>
+  <button data-tab="lib">經典釉圖鑑</button>
+  <button data-tab="brand">市售品牌釉</button>
+  <button data-tab="jp">日本諸窯圖鑑</button>
+</nav>
+<main>
+
+<!-- ===== 模擬器 ===== -->
+<section id="sim" class="tab show">
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h3>坯　體</h3>
+        <select id="body"></select>
+        <div class="rowval" style="margin-top:6px"><span id="bodyDesc" style="font-size:12px;color:var(--sub)"></span></div>
+      </div>
+      <div class="card">
+        <h3>基　釉</h3>
+        <select id="base"></select>
+        <div class="rowval" style="margin-top:6px"><span id="baseDesc" style="font-size:12px;color:var(--sub)"></span></div>
+      </div>
+      <div class="card">
+        <h3>呈色氧化物（外加 wt%）</h3>
+        <label><span class="rowval"><span>Fe₂O₃ 氧化鐵</span><b id="feV">2.0%</b></span></label>
+        <input type="range" id="fe" min="0" max="12" step="0.5" value="2">
+        <label><span class="rowval"><span>CuO 氧化銅</span><b id="cuV">0%</b></span></label>
+        <input type="range" id="cu" min="0" max="5" step="0.1" value="0">
+        <label><span class="rowval"><span>CoO 氧化鈷</span><b id="coV">0%</b></span></label>
+        <input type="range" id="co" min="0" max="3" step="0.05" value="0">
+        <label><span class="rowval"><span>MnO₂ 二氧化錳</span><b id="mnV">0%</b></span></label>
+        <input type="range" id="mn" min="0" max="6" step="0.5" value="0">
+        <label><span class="rowval"><span>Cr₂O₃ 氧化鉻</span><b id="crV">0%</b></span></label>
+        <input type="range" id="cr" min="0" max="3" step="0.25" value="0">
+        <label><span class="rowval"><span>TiO₂／金紅石</span><b id="tiV">0%</b></span></label>
+        <input type="range" id="ti" min="0" max="10" step="0.5" value="0">
+      </div>
+      <div class="card">
+        <h3>燒　成</h3>
+        <label>窯種／燒法</label>
+        <div class="seg" id="kiln">
+          <button data-v="electric">電窯</button>
+          <button class="on" data-v="gas">瓦斯窯</button>
+          <button data-v="wood">柴燒</button>
+          <button data-v="salt">鹽・蘇打</button>
+          <button data-v="raku">樂燒</button>
+          <button data-v="smoke">燻燒・坑燒</button>
+        </div>
+        <label>頂溫</label>
+        <div class="seg" id="temp">
+          <button data-v="1050">1050°C</button>
+          <button data-v="1220">1220°C</button>
+          <button class="on" data-v="1280">1280°C</button>
+          <button data-v="1300">1300°C</button>
+        </div>
+        <label>氣氛</label>
+        <div class="seg" id="atm">
+          <button data-v="ox">氧化</button>
+          <button data-v="neu">中性</button>
+          <button class="on" data-v="red">還原</button>
+          <button data-v="hred">強還原</button>
+        </div>
+        <label>冷卻</label>
+        <div class="seg" id="cool">
+          <button class="on" data-v="normal">自然冷卻</button>
+          <button data-v="slow">緩冷（析晶）</button>
+          <button data-v="fast">急冷</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card tile-wrap">
+        <div class="tile" id="tile"><div class="foot"></div></div>
+        <div class="hexline" id="hexline"></div>
+        <div style="width:100%">
+          <div style="font-size:12px;color:var(--sub);margin-bottom:4px">釉厚變化（薄 → 厚）</div>
+          <div class="swatchbar" id="thickbar"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>化學解說</h3>
+        <ul class="notes" id="notes"></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 混釉 ===== -->
+<section id="blend" class="tab">
+  <div class="card">
+    <h3>選擇兩支端點釉（直線配比 Line Blend）</h3>
+    <div class="blendrow">
+      <div>
+        <select id="gA"></select>
+        <div class="endpt" id="cA" style="margin-top:8px"></div>
+      </div>
+      <div style="text-align:center;color:var(--sub);font-size:22px">⇄</div>
+      <div>
+        <select id="gB"></select>
+        <div class="endpt" id="cB" style="margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="blendstrip" id="strip"></div>
+    <div style="height:24px"></div>
+    <label><span class="rowval"><span>混合比例　A：B</span><b id="ratioV">50 : 50</b></span></label>
+    <input type="range" id="ratio" min="0" max="100" step="5" value="50">
+    <div class="bigmix" id="bigmix"></div>
+    <ul class="notes" id="blendNotes" style="margin-top:14px"></ul>
+  </div>
+</section>
+
+<!-- ===== 圖鑑 ===== -->
+<section id="lib" class="tab">
+  <div class="lib" id="libgrid"></div>
+</section>
+
+<!-- ===== 市售品牌釉 ===== -->
+<section id="brand" class="tab">
+  <div class="card" style="margin-bottom:14px">
+    <div class="seg" id="mkfilter">
+      <button class="on" data-v="all">全部</button>
+      <button data-v="us">歐美</button>
+      <button data-v="jp">日本</button>
+      <button data-v="tw">台灣</button>
+    </div>
+    <p style="font-size:12px;color:var(--sub);margin-top:8px">品牌資料為代表性參考值（依公開資訊與常見使用經驗整理），呈色與燒成條件請以各廠官方試片及最新技術資料為準。</p>
+  </div>
+  <div class="lib" id="brandgrid"></div>
+</section>
+
+<!-- ===== 日本諸窯 ===== -->
+<section id="jp" class="tab">
+  <div class="card" style="margin-bottom:14px">
+    <p style="font-size:13px;color:var(--sub)">日本代表性窯場（含六古窯 ★）——各窯的「燒」是坯土、釉／無釉、窯種與燒成時間的整體組合。點卡片看化學要點；卡片色為代表性示意。</p>
+  </div>
+  <div class="lib" id="jpgrid"></div>
+</section>
+
+</main>
+<dialog id="dlg">
+  <div class="dc" id="dlgC"></div>
+  <div class="db">
+    <h2 id="dlgT"></h2>
+    <table id="dlgTable"></table>
+  </div>
+  <button id="dlgLoad" style="display:none;background:var(--ink);color:#fff;border-color:var(--ink)">⤵ 載入到模擬器</button>
+  <button onclick="dlg.close()">關閉</button>
+</dialog>
+<footer>色彩為依釉料化學原理推估之示意，實際呈色受原料批次、釉厚、窯位與燒成曲線影響，請以實燒試片為準。</footer>
+
+<script>
+/* ---------- 資料 ---------- */
+const BODY_GROUPS = [
+ {g:'通用分類', items:[
+  {id:'porcelainHi', name:'高白瓷土', fe:0.3, color:'#f4f1ec', maxT:1400, desc:'Fe < 0.5%・1280–1400°C・最純淨呈色基底'},
+  {id:'porcelain',   name:'一般瓷土', fe:0.7, color:'#efe9df', maxT:1350, desc:'Fe 0.5–1%・微暖調・影青與白瓷'},
+  {id:'stonewareW',  name:'白炻土',   fe:1.5, color:'#e8dfd0', maxT:1300, desc:'Fe 1–2%・工作室常備土'},
+  {id:'stonewareFe', name:'含鐵炻土', fe:3.0, color:'#c9b295', maxT:1280, desc:'Fe 2–4%・還原下浮現鐵斑'},
+  {id:'earthenware', name:'紅陶土',   fe:6.5, color:'#b0714f', maxT:1150, desc:'Fe 5–8%・限低溫・坯色透出使釉色暗沉'},
+  {id:'mogusa',      name:'蓆目土（志野用）', fe:1.5, color:'#e3cdb0', maxT:1280, desc:'高鋁砂質・與長石釉生緋色'},
+ ]},
+ {g:'台灣廠牌土', items:[
+  {id:'miaoli',  name:'苗栗土', fe:2.5, color:'#c2a887', maxT:1250, desc:'台灣經典炻器土・含砂・還原呈暖褐、鐵斑豐富'},
+  {id:'nantou',  name:'南投陶土', fe:3.5, color:'#b78f6b', maxT:1200, desc:'含鐵偏高・中低溫陶器與柴燒常用'},
+  {id:'yingge',  name:'鶯歌配方瓷土', fe:0.6, color:'#f0ebe2', maxT:1300, desc:'商業配方瓷土・拉坯性佳・白度高'},
+ ]},
+ {g:'日本廠牌土', items:[
+  {id:'shigaraki',    name:'信樂並土', fe:1.8, color:'#d9c3a3', maxT:1260, desc:'粗砂含長石粒・柴燒火色與焦痕表現佳'},
+  {id:'shigarakiAka', name:'信樂赤土', fe:4.5, color:'#a86e4c', maxT:1230, desc:'高鐵赤土・還原深褐、透明釉下呈飴色'},
+  {id:'hanjiki',      name:'半磁土', fe:0.4, color:'#f2efe8', maxT:1300, desc:'瓷土白度＋陶土可塑性的折衷'},
+ ]},
+ {g:'歐美廠牌土', items:[
+  {id:'bmix',   name:'Laguna B-Mix', fe:1.0, color:'#ece4d4', maxT:1305, desc:'滑潤白炻土・cone 10（另有 cone 5 版）'},
+  {id:'frost',  name:'Laguna Frost', fe:0.15, color:'#f7f5f1', maxT:1230, desc:'cone 6 半透明瓷土・白度極高'},
+  {id:'std182', name:'Standard 182 棕炻土', fe:3.2, color:'#b89070', maxT:1240, desc:'cone 6 氧化呈暖褐・市售釉在其上明顯變深'},
+ ]},
+];
+const BODIES = BODY_GROUPS.flatMap(g=>g.items);
+const BASES = [
+ {id:'lime',    name:'石灰透明釉', opacity:0.72, gloss:0.5,  desc:'CaO 主熔劑・青瓷/天目標準基底・矽鋁比≈8'},
+ {id:'feld',    name:'長石釉（志野系）', opacity:0.86, gloss:0.25, desc:'長石80%+・半失透・釉薄處露坯生緋色'},
+ {id:'alk',     name:'鹼性釉', opacity:0.70, gloss:0.55, desc:'K₂O/Na₂O 高・銅呈土耳其藍・易開片'},
+ {id:'ash',     name:'灰釉', opacity:0.62, gloss:0.5,  desc:'木灰 CaO/K₂O/P₂O₅・流動大・自然流紋'},
+ {id:'mgmatte', name:'鎂質無光釉', opacity:0.88, gloss:0.12, desc:'MgO 高・緞面・鈷偏紫/鐵偏黃'},
+ {id:'opaque',  name:'錫/鋯乳濁釉', opacity:0.95, gloss:0.4,  desc:'SnO₂/ZrSiO₄ 懸浮失透・白底'},
+];
+
+/* 色彩工具 */
+const hx=c=>{const n=parseInt(c.slice(1),16);return[n>>16&255,n>>8&255,n&255]};
+const rgb=a=>'#'+a.map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('');
+const lerp=(a,b,t)=>a+(b-a)*t;
+const mixc=(c1,c2,t)=>rgb([0,1,2].map(i=>lerp(hx(c1)[i],hx(c2)[i],t)));
+function ramp(stops,x){ /* stops:[[pos,'#hex'],...] */
+  if(x<=stops[0][0])return stops[0][1];
+  for(let i=1;i<stops.length;i++){
+    if(x<=stops[i][0]){const[p0,c0]=stops[i-1],[p1,c1]=stops[i];return mixc(c0,c1,(x-p0)/(p1-p0));}
+  }
+  return stops[stops.length-1][1];
+}
+
+/* 呈色引擎 */
+const FE_RED=[[0.3,'#e4ece8'],[1,'#c2d8cd'],[2,'#9dbfa8'],[3,'#7da184'],[5,'#6b7a5e'],[8,'#3f3226'],[10,'#1c1714'],[12,'#241a10']];
+const FE_OX =[[0.3,'#f2ede2'],[1,'#ead9b8'],[2,'#d9b878'],[4,'#b07f42'],[6,'#7d4f28'],[8,'#4d2f1a'],[10,'#2b1b10'],[12,'#3a2410']];
+const CU_OX =[[0.3,'#dcebde'],[1,'#a8cba6'],[2,'#7fae7f'],[3,'#5c9465'],[5,'#3f7d52']];
+const CU_ALK=[[0.3,'#c8e6ea'],[1,'#8fd0d8'],[2,'#4fb8c9'],[5,'#2a93a8']];
+const CU_RED=[[0.1,'#e8d5d2'],[0.3,'#d98a8a'],[0.5,'#b23a48'],[1,'#7c1f2b'],[2,'#4a1520'],[5,'#3a1220']];
+const CO_C  =[[0.05,'#dbe2f0'],[0.1,'#c8d4ea'],[0.25,'#9db4dd'],[0.5,'#6d8cc7'],[1,'#3b5ba8'],[2,'#1f3a7d'],[3,'#14224d']];
+const MN_C  =[[0.5,'#e0d0c4'],[2,'#a5766a'],[4,'#7a4a4e'],[6,'#54323a']];
+const MN_ALK=[[0.5,'#d8c4d4'],[2,'#a06a9a'],[4,'#7a4478'],[6,'#552e58']];
+const CR_C  =[[0.25,'#ccd8b8'],[1,'#8aa860'],[2,'#5f8440'],[3,'#4a6a34']];
+
+function simulate(s){
+  const body=BODIES.find(b=>b.id===s.body), base=BASES.find(b=>b.id===s.base);
+  const red = s.atm==='red'||s.atm==='hred';
+  const notes=[];
+  /* 有效鐵 = 外加 + 坯體擴散貢獻 */
+  const feEff = s.fe + body.fe*0.35;
+  const parts=[]; /* {color, weight} */
+  if(feEff>0.15){
+    let c = red? ramp(FE_RED,feEff) : ramp(FE_OX,feEff);
+    if(s.atm==='neu') c = mixc(ramp(FE_OX,feEff), ramp(FE_RED,feEff), 0.4);
+    if(base.id==='mgmatte'&&red) c=mixc(c,'#c9c08a',0.3);
+    parts.push({c,w:feEff*1.0});
+  }
+  if(s.cu>0){
+    let c,w=s.cu*3;
+    if(red){
+      if(s.atm==='hred'&&s.temp>=1250){ c=ramp(CU_RED,s.cu); }
+      else if(s.atm==='red'&&s.temp>=1250){ c=mixc(ramp(CU_RED,s.cu),'#cfd8cc',0.45); }
+      else { c='#cfd8cc'; w=s.cu; }
+    } else {
+      c = base.id==='alk'? ramp(CU_ALK,s.cu) : ramp(CU_OX,s.cu);
+    }
+    parts.push({c,w});
+  }
+  if(s.co>0){
+    let c=ramp(CO_C,s.co);
+    if(base.id==='mgmatte')c=mixc(c,'#8d7fb5',0.4);
+    if(s.ti>2)c=mixc(c,'#5f9ea8',0.3);
+    parts.push({c,w:s.co*10});
+  }
+  if(s.mn>0){ parts.push({c: base.id==='alk'? ramp(MN_ALK,s.mn):ramp(MN_C,s.mn), w:s.mn*0.8}); }
+  if(s.cr>0){
+    let c=ramp(CR_C,s.cr);
+    parts.push({c,w:s.cr*2.5});
+  }
+  /* 合成釉層色 */
+  let glaze;
+  if(parts.length===0){ glaze='#eceae2'; }
+  else{
+    const tw=parts.reduce((a,p)=>a+p.w,0);
+    let acc=[0,0,0];
+    parts.forEach(p=>{const v=hx(p.c);acc=acc.map((x,i)=>x+v[i]*p.w/tw)});
+    glaze=rgb(acc);
+  }
+  /* TiO2 乳濁/窯變 */
+  let opacity=base.opacity, gloss=base.gloss;
+  if(s.ti>0){ opacity=Math.min(0.97,opacity+s.ti*0.03); glaze=mixc(glaze,red?'#cfd8e0':'#e8dfc4',Math.min(0.5,s.ti*0.06)); }
+  if(base.id==='opaque'){ glaze=mixc(glaze,'#f2f0ea',0.35); }
+  /* 溫度：生燒/過燒 */
+  const under = s.temp<1200 && !['alk'].includes(base.id);
+  if(under){ glaze=mixc(glaze,'#d8d2c4',0.5); gloss*=0.3; }
+  if(s.temp>=1280&&base.id==='ash'){ gloss=Math.min(0.75,gloss+0.2); }
+  /* 緩冷析晶 */
+  if(s.cool==='slow'&&feEff>=5&&red){ glaze=mixc(glaze,'#6d7a42',0.35); }
+  /* ---- 窯種／燒法效果 ---- */
+  const overlays=[];
+  if(s.kiln==='wood'){
+    /* 自然落灰（火前側）＋炭化陰面＋火痕 */
+    glaze=mixc(glaze,'#8a7a55',0.18);
+    overlays.push('linear-gradient(115deg, rgba(140,150,95,.50), rgba(140,150,95,.18) 38%, transparent 55%)');   /* 落灰面 */
+    overlays.push('radial-gradient(ellipse at 78% 88%, rgba(28,20,14,.55), transparent 55%)');                    /* 炭化陰面 */
+    overlays.push('linear-gradient(200deg, transparent 55%, rgba(190,100,50,.30) 75%, transparent 92%)');         /* 火痕 */
+  }
+  if(s.kiln==='salt'){
+    gloss=Math.min(0.8,gloss+0.25);
+    glaze=mixc(glaze, body.fe>2 ? '#9c6a3f' : '#d8c8a8', 0.22);
+    overlays.push('radial-gradient(circle at 35% 45%, rgba(255,205,130,.20), transparent 45%)');                   /* 橘皮反光 */
+    overlays.push('radial-gradient(circle at 62% 30%, rgba(120,80,40,.15), transparent 40%)');
+  }
+  if(s.kiln==='raku'){
+    glaze=mixc(glaze,'#cfc8bc',0.15);
+    overlays.push('linear-gradient(70deg, transparent 40%, rgba(40,35,30,.35) 42%, transparent 44%, transparent 60%, rgba(40,35,30,.3) 62%, transparent 64%)'); /* 煙燻裂紋 */
+    overlays.push('radial-gradient(ellipse at 20% 85%, rgba(30,26,22,.45), transparent 50%)');
+  }
+  if(s.kiln==='smoke'){
+    opacity=Math.min(opacity,0.3);
+    glaze=mixc(body.color,'#3a332c',0.3);
+    overlays.push('radial-gradient(ellipse at 30% 70%, rgba(20,16,12,.65), transparent 55%)');
+    overlays.push('radial-gradient(ellipse at 72% 25%, rgba(60,50,40,.4), transparent 50%)');
+    overlays.push('linear-gradient(160deg, transparent 30%, rgba(90,70,55,.25) 50%, transparent 70%)');
+  }
+  /* 疊上坯色 */
+  const final = mixc(body.color, glaze, opacity);
+  /* 釉厚序列 */
+  const thick=[0.35,0.55,0.75,0.9,1].map(t=>mixc(body.color,glaze,Math.min(0.97,opacity*t)));
+
+  /* ---- 解說 ---- */
+  const A={ox:'氧化焰',neu:'中性焰',red:'還原焰',hred:'強還原焰'}[s.atm];
+  if(feEff>0.15){
+    if(red){
+      const n = feEff<1.5?'青白／粉青':feEff<2.8?'梅子青':feEff<4?'豆青':feEff<7?'鐵褐（茶葉末方向）':feEff<11?'天目黑':'飽和鐵・鐵鏽結晶';
+      notes.push({t:`Fe³⁺ 在還原下轉為 Fe²⁺，青綠呈色。有效鐵約 ${feEff.toFixed(1)}%（外加 ${s.fe}% ＋ 坯體擴散），落在「${n}」區間。`,k:'chem'});
+    } else {
+      notes.push({t:`氧化焰下鐵維持 Fe³⁺，呈黃褐系。有效鐵約 ${feEff.toFixed(1)}%。`,k:'chem'});
+    }
+    if(body.fe>=2.5) notes.push({t:`${body.name}含鐵量高，還原下鐵自坯內向釉層擴散——會比同釉施於瓷土暗 1–2 階，並可能出現鐵斑。`,k:''});
+  }
+  if(s.cu>0){
+    if(s.atm==='hred'&&s.temp>=1250) notes.push({t:`強還原使 Cu²⁺ → Cu⁺/Cu⁰ 奈米膠體，散射呈紅（銅紅原理）。${s.cu>1?'銅量偏高，易發暗紫、局部發黑。':'比例良好，鮮紅區間。'}`,k:'chem'});
+    else if(red&&s.temp>=1250) notes.push({t:'一般還原對銅紅偏弱：呈桃紅暈或局部褪色。銅紅需在 1050–1200°C 段即施以強還原。',k:'warn'});
+    else if(red) notes.push({t:'溫度不足，銅紅無法發色（需 ≥1250°C 強還原），趨近無色。',k:'warn'});
+    else notes.push({t:`氧化焰下 Cu²⁺ 呈${base.id==='alk'?'土耳其藍（鹼性釉、高 K/Na 環境）':'銅綠（石灰基底）'}。`,k:'chem'});
+    if(s.temp>=1300) notes.push({t:'1300°C 銅開始明顯揮發，薄釉處會脫色，並可能燻染鄰近作品。',k:'warn'});
+  }
+  if(s.co>0){ notes.push({t:`Co²⁺ 四面體配位呈藍，發色力極強（${s.co}% 已${s.co>=1?'非常':'相當'}明顯），氧化還原皆穩定。${base.id==='mgmatte'?'鎂質基底使鈷偏紫。':''}`,k:'chem'}); }
+  if(s.mn>0){ notes.push({t: base.id==='alk'?'高鹼環境中 Mn³⁺ 呈紫色調。':'錳呈褐紫；若要出紫，改用高鉀鈉鹼性基釉。',k:'chem'}); }
+  if(s.cr>0){ notes.push({t:'Cr³⁺ 呈穩定草綠。若基釉含 ZnO 會轉褐；微量鉻＋高錫可轉鉻錫粉紅（氧化焰）。',k:'chem'}); }
+  if(s.ti>0){ notes.push({t:`TiO₂ 促進分相與微晶，增加乳濁${red?'，還原下易生藍白窯變斑（海鼠釉方向）':'，呈奶油質地'}。`,k:'chem'}); }
+  if(under) notes.push({t:`${s.temp}°C 對此基釉屬生燒：釉未熔融完全，表面乾澀無光、色彩灰啞。`,k:'warn'});
+  if(s.temp>body.maxT) notes.push({t:`${body.name}耐火上限約 ${body.maxT}°C，${s.temp}°C 已過燒——坯體軟化變形、起泡風險。`,k:'warn'});
+  if(base.id==='feld'&&body.id==='mogusa') notes.push({t:'長石釉 × 蓆目土：釉薄處坯鐵在中間層氧化呈志野緋色（火色），厚釉處乳白。',k:'chem'});
+  if(base.id==='alk') notes.push({t:'鹼性釉膨脹係數高，瓷坯上幾乎必開片（可作冰裂紋裝飾，食器需評估）。',k:''});
+  if(s.cool==='slow'&&feEff>=5&&red) notes.push({t:'緩冷使過飽和鐵析出輝石／磁鐵礦微晶：茶葉末、油滴的成因。',k:'chem'});
+  if(s.cool==='fast'&&s.cu>0&&s.atm==='hred') notes.push({t:'高溫段急冷有利銅紅定色，防止冷卻中再氧化褪色。',k:''});
+  /* 窯種解說 */
+  if(s.kiln==='electric'&&red) notes.push({t:'電窯以電熱線加熱、窯內為氧化氣氛：要還原須投入可燃物或改瓦斯窯，且會縮短電熱線壽命。此處呈色仍按你選的還原模擬，實務請注意。',k:'warn'});
+  if(s.kiln==='wood'){
+    notes.push({t:'柴燒：松木灰（CaO/K₂O/P₂O₅）落於火前側，高溫下與坯表 SiO₂ 熔成自然灰釉——面火側掛灰泛綠、背火側炭化沉暗、埋灰處出火痕緋紅。同一件作品即是一張氣氛地圖。',k:'chem'});
+    if(s.temp<1250) notes.push({t:'柴燒自然灰需 1250°C 以上才充分熔融，低於此溫度落灰呈乾粉狀。',k:'warn'});
+    notes.push({t:'窯位即變數：火前（強落灰）、火腹（火痕）、煙道側（炭化）結果迥異；建議紀錄時標注窯位。',k:''});
+  }
+  if(s.kiln==='salt'){
+    notes.push({t:'鹽燒／蘇打燒：1280°C 以上投入 NaCl 或噴入 Na₂CO₃ 溶液，鈉蒸氣與坯表矽鋁即時反應成釉，形成橘皮質地。含鐵坯呈橘褐～棕紅，瓷坯呈米白帶光。',k:'chem'});
+    if(s.temp<1250) notes.push({t:'溫度不足，鈉蒸氣無法充分與坯表反應，橘皮效果弱。',k:'warn'});
+    notes.push({t:'鹽蒸氣會侵蝕窯體與棚板，通常使用專用窯；蘇打燒腐蝕較緩和。',k:''});
+  }
+  if(s.kiln==='raku'){
+    if(s.temp>1100) notes.push({t:'樂燒屬低溫快燒（約 900–1000°C），現選溫度過高——樂燒坯體多孔、耐熱震，高溫會使其玻化失去特性。',k:'warn'});
+    notes.push({t:'樂燒：紅熱狀態夾出、投入木屑悶燻——後還原使釉面金屬光（銅釉尤其明顯），開片滲入碳呈黑色裂紋，露坯處燻黑。',k:'chem'});
+    notes.push({t:'樂燒器多孔滲水且釉面含碳，一般不作食器。',k:''});
+  }
+  if(s.kiln==='smoke'){
+    notes.push({t:'燻燒／坑燒：多為無釉素坯（約 800–1000°C），有機物悶燒的碳滲入坯體氣孔，呈黑灰雲霧紋；包覆銅線、海草、鹽可留下局部色痕。',k:'chem'});
+    if(parts.length>0) notes.push({t:'燻燒以坯體表面效果為主，外加呈色劑多以化妝土或燻前拋光呈現，釉的作用有限（模擬中已降低釉層存在感）。',k:''});
+  }
+  if(notes.length===0) notes.push({t:'無外加呈色劑：呈基釉本色與坯色。試著拉動左側滑桿觀察變化。',k:''});
+
+  return {final,glaze,thick,gloss,notes,body,overlays};
+}
+
+/* ---------- 模擬器 UI ---------- */
+const S={body:'porcelainHi',base:'lime',fe:2,cu:0,co:0,mn:0,cr:0,ti:0,temp:1280,atm:'red',cool:'normal',kiln:'gas'};
+const $=id=>document.getElementById(id);
+BODY_GROUPS.forEach(gr=>{
+  const og=document.createElement('optgroup'); og.label=gr.g;
+  gr.items.forEach(b=>og.appendChild(new Option(b.name,b.id)));
+  $('body').appendChild(og);
+});
+BASES.forEach(b=>$('base').add(new Option(b.name,b.id)));
+function bindSeg(id,key){ $(id).querySelectorAll('button').forEach(bt=>bt.onclick=()=>{ $(id).querySelectorAll('button').forEach(x=>x.classList.remove('on')); bt.classList.add('on'); S[key]= id==='temp'?+bt.dataset.v:bt.dataset.v; render(); }); }
+bindSeg('temp','temp');bindSeg('atm','atm');bindSeg('cool','cool');bindSeg('kiln','kiln');
+['fe','cu','co','mn','cr','ti'].forEach(k=>{ $(k).oninput=()=>{S[k]=+$(k).value; $(k+'V').textContent=S[k]+'%'; render();}; });
+$('body').onchange=()=>{S.body=$('body').value;render()};
+$('base').onchange=()=>{S.base=$('base').value;render()};
+
+function render(){
+  const r=simulate(S);
+  $('bodyDesc').textContent=BODIES.find(b=>b.id===S.body).desc;
+  $('baseDesc').textContent=BASES.find(b=>b.id===S.base).desc;
+  const t=$('tile');
+  const baseBg=`radial-gradient(circle at 38% 30%, ${mixc(r.final,'#ffffff',0.12)}, ${r.final} 55%, ${mixc(r.final,'#000000',0.18)})`;
+  t.style.background=[...(r.overlays||[]),baseBg].join(',');
+  t.style.setProperty('--gloss',r.gloss);
+  t.style.setProperty('--footcolor',r.body.color);
+  $('hexline').textContent=`釉面代表色 ${r.final.toUpperCase()}　·　釉層色 ${r.glaze.toUpperCase()}　·　坯色 ${r.body.color.toUpperCase()}`;
+  $('thickbar').innerHTML=r.thick.map(c=>`<div style="background:${c}"></div>`).join('');
+  $('notes').innerHTML=r.notes.map(n=>`<li class="${n.k}">${n.t}</li>`).join('');
+}
+
+/* ---------- 經典釉資料 ---------- */
+const CLASSICS=[
+ {n:'龍泉粉青',c:'#b8cfc4',body:'高白瓷',col:'Fe 1–1.5%',fire:'1280°C 還原',chem:'石灰鹼釉厚掛，微氣泡散射成玉質感'},
+ {n:'梅子青',c:'#8fb79a',body:'瓷土',col:'Fe 2–2.5%',fire:'1300°C 強還原',chem:'高溫透亮玻璃相，色濃如青梅'},
+ {n:'汝窯天青',c:'#a8c0c8',body:'香灰胎',col:'Fe ~1%',fire:'1220–1250°C 還原',chem:'微失透乳濁＋坯色透出'},
+ {n:'影青',c:'#dbe7e3',body:'高白瓷',col:'Fe 0.5–1%',fire:'1280°C 還原',chem:'薄釉高透，刻紋積釉處色深'},
+ {n:'天目烏金',c:'#1a1512',body:'含鐵炻土',col:'Fe 8–10%',fire:'1280°C',chem:'鐵飽和黑釉'},
+ {n:'油滴天目',c:'#2b2118',body:'含鐵炻土',col:'Fe 10–12%',fire:'1300°C＋緩冷',chem:'過飽和鐵析出磁鐵礦晶簇成銀斑'},
+ {n:'兔毫',c:'#3d2c1a',body:'建陽含鐵坯',col:'Fe 8–10%',fire:'1300°C 還原',chem:'釉流動拉出鐵結晶絲'},
+ {n:'茶葉末',c:'#5d6142',body:'炻土',col:'Fe 5–8%＋MgO',fire:'1250°C 還原緩冷',chem:'輝石微晶浮於褐地'},
+ {n:'郎紅',c:'#a02128',body:'高白瓷',col:'Cu 0.3–0.5%＋Sn',fire:'1300°C 強還原',chem:'銅膠體散射呈紅，垂足如牛血'},
+ {n:'鈞窯天藍',c:'#7290a8',body:'炻土',col:'P₂O₅ 分相',fire:'1280°C 還原',chem:'液液分相乳光（結構色）'},
+ {n:'鈞窯紫斑',c:'#6d4a6e',body:'炻土',col:'分相藍＋Cu',fire:'1280°C 還原',chem:'天藍底刷銅料，紅藍互滲'},
+ {n:'志野',c:'#e8c4a8',body:'蓆目土',col:'長石 80%＋',fire:'1230°C 微還原長燒',chem:'釉薄處坯鐵成緋色，柚子肌針孔'},
+ {n:'織部綠',c:'#5a7d46',body:'含鐵陶土',col:'Cu 3–5%',fire:'1220°C 氧化',chem:'氧化銅綠定色'},
+ {n:'黃瀨戶',c:'#c9a84c',body:'陶土',col:'Fe 2–3%',fire:'1220°C 氧化',chem:'灰釉系氧化鐵黃'},
+ {n:'鹽釉',c:'#9c6a3f',body:'炻土',col:'坯鐵＋NaCl',fire:'1300°C 投鹽',chem:'鈉蒸氣與坯表即時成釉，橘皮質地'},
+ {n:'柴燒自然灰',c:'#8a7a55',body:'炻土',col:'木灰 CaO/K₂O',fire:'1250–1300°C 多日',chem:'落灰熔融成釉、火痕陰陽面'},
+];
+
+/* ---------- 市售品牌釉（代表性參考資料，實際請以各廠官方試片為準） ---------- */
+const BRANDS=[
+ {n:'PC-20 Blue Rutile',brand:'Amaco Potter’s Choice',mk:'us',c:'#5b7d9a',fire:'Cone 5–6 氧化（電窯）',col:'金紅石＋鐵',chem:'鈦促液液分相，流動與積釉處呈藍白絲光窯變',dark:'深色坯上藍斑對比更強烈，是本系列招牌用法'},
+ {n:'PC-53 Ancient Jasper',brand:'Amaco Potter’s Choice',mk:'us',c:'#7d3f2a',fire:'Cone 5–6 氧化',col:'高鐵',chem:'鐵紅結晶流紋，電窯中重現柿釉／鐵砂質感',dark:'深色坯上偏黑褐，紋理變細'},
+ {n:'PC-42 Seaweed',brand:'Amaco Potter’s Choice',mk:'us',c:'#647b52',fire:'Cone 5–6 氧化',col:'鐵＋鈦',chem:'綠褐斑駁，薄處露褐、厚處聚綠',dark:'深色坯上近墨綠'},
+ {n:'PC-4 Palladium',brand:'Amaco Potter’s Choice',mk:'us',c:'#6a6d70',fire:'Cone 5–6 氧化',col:'高錳系',chem:'金屬銀黑光澤（錳鐵金屬質面）',dark:'各坯體差異小，注意錳蒸氣通風'},
+ {n:'SW-101 Stoned Denim',brand:'Mayco Stoneware',mk:'us',c:'#5f7893',fire:'Cone 5–6 氧化',col:'鈷＋金紅石',chem:'藍灰底浮白斑，模擬還原窯變',dark:'深色坯上白斑更跳'},
+ {n:'SW-112 Tiger’s Eye',brand:'Mayco Stoneware',mk:'us',c:'#8a5a2e',fire:'Cone 5–6 氧化',col:'鐵＋金紅石',chem:'琥珀褐流動結晶',dark:'深色坯上偏深咖啡'},
+ {n:'Archie’s Base',brand:'Coyote',mk:'us',c:'#e9e5da',fire:'Cone 6 氧化',col:'—',chem:'乳白裂紋志野風基釉，常與其他釉疊用',dark:'深色坯上裂紋透出坯色、對比佳'},
+ {n:'Floating Blue',brand:'Spectrum',mk:'us',c:'#4f6e8a',fire:'Cone 4–6 氧化',col:'鈷＋金紅石',chem:'經典浮藍：藍底浮綠白絲紋，對釉厚極敏感',dark:'薄掛易全黑，需足厚'},
+ {n:'織部釉（粉末）',brand:'丸二陶料（日本）',mk:'jp',c:'#5a7d46',fire:'1230°C 氧化',col:'Cu 3–5%',chem:'傳統織部銅綠，酸洗後更鮮',dark:'含鐵坯上偏苔綠'},
+ {n:'天目釉（粉末）',brand:'丸二陶料（日本）',mk:'jp',c:'#1c1714',fire:'1230–1250°C',col:'Fe 8–10%',chem:'標準天目黑，緩冷可誘導油滴',dark:'坯體影響小'},
+ {n:'志野釉（粉末）',brand:'日本市售陶料',mk:'jp',c:'#ecd9c4',fire:'1230°C 微還原',col:'長石系',chem:'半失透乳白，薄處生緋色',dark:'高鐵坯上緋色更濃'},
+ {n:'青瓷釉粉',brand:'台灣陶料行常備',mk:'tw',c:'#a8c4b4',fire:'1250°C 還原',col:'Fe 1–2%',chem:'石灰系青瓷基礎釉，還原良好呈粉青',dark:'苗栗土上偏灰青、帶鐵斑'},
+];
+
+/* ---------- 混釉 ---------- */
+const ALLG=[...CLASSICS.map(g=>({...g,src:'經典釉系'})),
+            ...BRANDS.map(g=>({n:`${g.n}（${g.brand}）`,c:g.c,body:'—',col:g.col,fire:g.fire,chem:g.chem,src:'市售品牌釉'}))];
+['gA','gB'].forEach(id=>{
+  ['經典釉系','市售品牌釉'].forEach(src=>{
+    const og=document.createElement('optgroup'); og.label=src;
+    ALLG.forEach((g,i)=>{ if(g.src===src) og.appendChild(new Option(g.n,i)); });
+    $(id).appendChild(og);
+  });
+});
+$('gA').value=1; $('gB').value=4;
+function blendColor(a,b,t){
+  /* 非線性：中段熔融度提高 → 略暗且飽和（共熔效應示意） */
+  let c=mixc(a,b,t);
+  const bump=Math.sin(Math.PI*t)*0.12;
+  return mixc(c,'#3a3626',bump);
+}
+function renderBlend(){
+  const A=ALLG[$('gA').value], B=ALLG[$('gB').value];
+  $('cA').style.background=A.c; $('cB').style.background=B.c;
+  const steps=[0,10,25,40,50,60,75,90,100];
+  $('strip').innerHTML=steps.map(s=>`<div style="background:${blendColor(A.c,B.c,s/100)}" title="A${100-s}:B${s}" onclick="setRatio(${100-s})"><span>${100-s}:${s}</span></div>`).join('');
+  const t=(100-+$('ratio').value)/100;
+  const mixHex=blendColor(A.c,B.c,t);
+  $('ratioV').textContent=`${$('ratio').value} : ${100-$('ratio').value}`;
+  $('bigmix').style.background=`radial-gradient(circle at 40% 30%, ${mixc(mixHex,'#ffffff',0.1)}, ${mixHex})`;
+  $('bigmix').textContent=`${A.n} ${$('ratio').value}%　×　${B.n} ${100-+$('ratio').value}%　→ ${mixHex.toUpperCase()}`;
+  const notes=[
+   {t:'混釉不是顏色的線性內插：兩釉助熔劑相加常產生共熔效應，中間比例熔融度更高、更透更流。',k:'chem'},
+   {t:`端點必須先確認同溫層可燒：${A.n}（${A.fire}）與 ${B.n}（${B.fire}）${A.fire===B.fire?'燒成條件相同，可直接混合試驗。':'燒成條件不同，以較高溫、對氣氛要求較嚴者為準。'}`,k:''},
+  ];
+  const hiFe=(A.col+B.col).includes('Fe 8')||(A.col+B.col).includes('Fe 10');
+  if(hiFe&&((A.col+B.col).includes('Fe 1')||(A.col+B.col).includes('Fe 0.5'))) notes.push({t:'高鐵釉 × 低鐵釉：中段常出現茶葉末、鐵褐等兩端點都沒有的呈色——最值得做完整九階試驗的組合。',k:'chem'});
+  if((A.col+B.col).includes('Cu')) notes.push({t:'含銅端點：稀釋端（銅 <0.5%）可能出現桃花片粉調；記得強還原並在高溫段急冷。',k:'chem'});
+  $('blendNotes').innerHTML=notes.map(n=>`<li class="${n.k}">${n.t}</li>`).join('');
+}
+window.setRatio=v=>{$('ratio').value=v;renderBlend();};
+$('gA').onchange=renderBlend; $('gB').onchange=renderBlend; $('ratio').oninput=renderBlend;
+
+/* ---------- 圖鑑 ---------- */
+const dlg=$('dlg');
+$('libgrid').innerHTML=CLASSICS.map((g,i)=>`
+ <div class="g" onclick="openG(${i})">
+   <div class="c" style="background:linear-gradient(160deg,${mixc(g.c,'#ffffff',0.15)},${g.c} 60%,${mixc(g.c,'#000000',0.15)})"></div>
+   <div class="t"><b>${g.n}</b><p>${g.body}・${g.fire}</p></div>
+ </div>`).join('');
+window.openG=i=>{
+  $('dlgLoad').style.display='none';
+  const g=CLASSICS[i];
+  $('dlgC').style.background=`linear-gradient(160deg,${mixc(g.c,'#ffffff',0.15)},${g.c} 60%,${mixc(g.c,'#000000',0.2)})`;
+  $('dlgT').textContent=g.n;
+  $('dlgTable').innerHTML=[['坯體',g.body],['呈色劑',g.col],['燒成',g.fire],['關鍵化學',g.chem],['代表色',g.c.toUpperCase()]]
+    .map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+  dlg.showModal();
+};
+
+/* ---------- 日本諸窯 ---------- */
+const JPWARES=[
+ {n:'備前燒 ★',pl:'岡山縣',c:'#7a4e34',body:'高鐵田土（干寄）・細緻無砂',fire:'穴窯/登窯柴燒 1200–1250°C・7–14 天',chem:'無釉炻器之極致：胡麻（落灰熔斑）、緋襷（稻草 K₂O 與坯鐵反應成緋紅線）、桟切（埋灰還原灰青）、牡丹餅（疊燒留白）',note:'土含鐵高且緻密，慢燒慢冷防開裂'},
+ {n:'信樂燒 ★',pl:'滋賀縣',c:'#c98d5a',body:'白系粗土・含長石與矽石粒',fire:'穴窯柴燒 1250°C 前後',chem:'火色（坯鐵氧化橘紅）＋長石粒熔出白斑（蟹目）＋面火側自然灰釉泛綠（ビードロ）',note:'狸置物與茶陶皆出於此土的溫暖砂質感'},
+ {n:'伊賀燒',pl:'三重縣',c:'#7a8a5a',body:'古琵琶湖層粗土・耐火高',fire:'柴燒高溫多次投柴 1300°C',chem:'綠色玻璃質流灰（ビードロ釉）與焦黑（焦げ）並存——強落灰與強炭化的對比美學',note:'「伊賀に耳あり」雙耳花入為代表'},
+ {n:'丹波立杭燒 ★',pl:'兵庫縣',c:'#6f5a42',body:'含鐵陶土',fire:'登窯柴燒 1300°C・60 小時＋',chem:'自然灰釉「灰被」與赤土部釉；松灰與坯鐵形成青褐流紋',note:'日本最古登窯傳統之一'},
+ {n:'越前燒 ★',pl:'福井縣',c:'#5f4a38',body:'含鐵耐火土',fire:'穴窯柴燒 1250°C＋',chem:'無釉焼締＋自然灰：薪灰沿器壁流下成「自然釉垂」，色自黃綠至暗褐',note:'中世以壺、甕、擂鉢為主的實用陶'},
+ {n:'常滑燒 ★',pl:'愛知縣',c:'#a05038',body:'朱泥（高鐵細土）',fire:'氧化燒 1100–1150°C',chem:'朱泥急須：Fe₂O₃ 5–8% 細土氧化燒成磚紅，無釉拋磨後泡茶養出光澤',note:'鐵與茶單寧微反應，傳統上認為利茶湯',},
+ {n:'瀨戶燒 ★',pl:'愛知縣',c:'#b8a878',body:'白瀨戶土（木節/蛙目黏土）',fire:'登窯→現代瓦斯/電窯 1230°C',chem:'日本施釉陶起點：灰釉、鐵釉（古瀨戶飴釉）體系之母，後開展出黃瀨戶、志野、織部',note:'「せともの」即日本陶瓷代名詞'},
+ {n:'美濃燒',pl:'岐阜縣',c:'#e8c4a8',body:'蓆目土・五斗蒔土',fire:'窖窯→現代窯 1230°C',chem:'志野（長石釉緋色）、織部（銅綠）、黃瀨戶（鐵黃）、瀨戶黑（引出黑：高溫夾出急冷成漆黑）',note:'桃山茶陶的核心產地'},
+ {n:'萩燒',pl:'山口縣',c:'#d9c0a0',body:'大道土＋見島土（軟質高吸水）',fire:'登窯 1200–1230°C 弱還原',chem:'枇杷色：長石灰釉薄掛於微鐵坯呈暖枇杷色；貫入吸茶湯經年變色——「萩の七化け」',note:'一樂二萩三唐津'},
+ {n:'唐津燒',pl:'佐賀縣',c:'#9a8468',body:'砂質含鐵土',fire:'割竹式登窯 1250°C 還原',chem:'繪唐津（鐵繪）、朝鮮唐津（藁灰失透白流於鐵黑上，藁灰 SiO₂/P₂O₅ 乳濁）、斑唐津',note:'朝鮮陶工技術東傳的起點之一'},
+ {n:'有田燒（伊萬里）',pl:'佐賀縣',c:'#eef0ee',body:'泉山陶石/天草陶石（瓷）',fire:'1300°C 還原',chem:'日本瓷器起點：染付（鈷青花）、柿右衛門赤繪（上繪 Fe 紅）、金襴手；瓷石單味成坯',note:'1616 年李參平發現泉山陶石'},
+ {n:'九谷燒',pl:'石川縣',c:'#3f6a58',body:'花坂陶石（瓷）',fire:'1300°C＋上繪 800°C 二次燒',chem:'五彩上繪（九谷五彩：綠黃紫紺青赤）——低溫鉛硼熔塊釉上彩，色濃重',note:'青手九谷以綠黃塗滿為特徵'},
+ {n:'京燒・清水燒',pl:'京都府',c:'#c8b8d0',body:'多元（瓷土/陶土並用）',fire:'1230–1300°C',chem:'技法集大成：仁清乳白釉上彩、乾山鐵繪、交趾三彩——以彩繪與釉上技術見長',note:'無單一土或釉的定義，以工房風格為核心'},
+ {n:'薩摩燒',pl:'鹿兒島縣',c:'#e8dcc0',body:'白薩摩：白陶土／黑薩摩：鐵質土',fire:'1200–1250°C',chem:'白薩摩：象牙色貫入細裂＋金彩上繪；黑薩摩（黑ぢょか）：鐵釉黑褐日用器',note:'白薩摩為藩主御用、黑薩摩為庶民燒酎器'},
+ {n:'益子燒',pl:'栃木縣',c:'#8a6a4a',body:'砂質含鐵陶土',fire:'登窯/現代窯 1230°C',chem:'柿釉（鐵飽和赤褐）、糠白釉（籾殼灰 SiO₂ 乳白）、黑釉——濱田庄司民藝美學的載體',note:'厚掛流釉的樸拙質感'},
+ {n:'壺屋燒（沖繩）',pl:'沖繩縣',c:'#b07850',body:'島尻黏土（含鐵）',fire:'登窯 1200°C',chem:'荒燒（無釉）與上燒（施釉）：白化妝土＋透明釉＋鐵/銅/鈷三彩點打（イッチン線描）',note:'魚紋、唐草的琉球意匠'},
+];
+/* 一鍵載入模擬器的預設組合（以現有變數近似該窯風格） */
+const JPPRESETS={
+ '備前燒 ★':      {body:'stonewareFe',base:'lime',ox:{fe:0},temp:1220,atm:'neu',kiln:'wood',cool:'normal',msg:'備前為無釉燒締：呈色來自坯鐵＋柴燒落灰與火痕（緋襷、胡麻需實窯技法）'},
+ '信樂燒 ★':      {body:'shigaraki',base:'lime',ox:{fe:0},temp:1250,atm:'neu',kiln:'wood',cool:'normal',msg:'信樂火色：坯鐵氧化橘紅＋面火側自然灰泛綠'},
+ '伊賀燒':        {body:'shigaraki',base:'ash',ox:{fe:0},temp:1300,atm:'red',kiln:'wood',cool:'normal',msg:'伊賀ビードロ：高溫強落灰成綠色玻璃質流釉'},
+ '丹波立杭燒 ★':  {body:'stonewareFe',base:'ash',ox:{fe:1},temp:1300,atm:'red',kiln:'wood',cool:'normal',msg:'灰被＋赤土部：松灰與坯鐵的青褐流紋'},
+ '越前燒 ★':      {body:'stonewareFe',base:'lime',ox:{fe:0},temp:1250,atm:'neu',kiln:'wood',cool:'normal',msg:'焼締＋自然釉垂'},
+ '常滑燒 ★':      {body:'earthenware',base:'lime',ox:{fe:0},temp:1050,atm:'ox',kiln:'electric',cool:'normal',msg:'朱泥：高鐵細土氧化燒成磚紅（無釉拋磨）'},
+ '瀨戶燒 ★':      {body:'stonewareW',base:'ash',ox:{fe:2},temp:1220,atm:'ox',kiln:'gas',cool:'normal',msg:'古瀨戶飴釉方向：灰釉＋鐵'},
+ '美濃燒':        {body:'mogusa',base:'feld',ox:{fe:0.5},temp:1220,atm:'red',kiln:'gas',cool:'normal',msg:'志野方向：長石釉厚掛蓆目土、微還原長燒出緋色'},
+ '萩燒':          {body:'stonewareW',base:'feld',ox:{fe:0.5},temp:1220,atm:'red',kiln:'wood',cool:'normal',msg:'枇杷色：長石灰釉薄掛微鐵坯、弱還原'},
+ '唐津燒':        {body:'stonewareFe',base:'ash',ox:{fe:2},temp:1280,atm:'red',kiln:'wood',cool:'normal',msg:'土物唐津：砂質鐵土＋灰釉還原'},
+ '有田燒（伊萬里）':{body:'porcelainHi',base:'lime',ox:{co:0.5},temp:1300,atm:'red',kiln:'gas',cool:'normal',msg:'染付：白瓷＋鈷青花（上繪赤繪不在模擬範圍）'},
+ '九谷燒':        {body:'porcelainHi',base:'lime',ox:{},temp:1300,atm:'red',kiln:'gas',cool:'normal',msg:'白瓷素地；九谷五彩為 800°C 釉上彩，另需二次燒'},
+ '京燒・清水燒':  {body:'porcelain',base:'lime',ox:{fe:0.5},temp:1220,atm:'ox',kiln:'electric',cool:'normal',msg:'仁清風乳白素地方向；上繪技法另計'},
+ '薩摩燒':        {body:'stonewareW',base:'lime',ox:{fe:0.5},temp:1220,atm:'ox',kiln:'electric',cool:'normal',msg:'白薩摩象牙色貫入素地方向'},
+ '益子燒':        {body:'stonewareFe',base:'ash',ox:{fe:6},temp:1220,atm:'ox',kiln:'gas',cool:'normal',msg:'柿釉：鐵飽和赤褐'},
+ '壺屋燒（沖繩）':{body:'stonewareFe',base:'opaque',ox:{fe:0.5},temp:1220,atm:'ox',kiln:'wood',cool:'normal',msg:'上燒：白化妝（以乳濁近似）＋透明釉'},
+};
+function setSeg(id,val){ $(id).querySelectorAll('button').forEach(b=>b.classList.toggle('on', String(b.dataset.v)===String(val))); }
+function applyPreset(name){
+  const p=JPPRESETS[name]; if(!p) return;
+  S.body=p.body; S.base=p.base; S.temp=p.temp; S.atm=p.atm; S.kiln=p.kiln; S.cool=p.cool;
+  ['fe','cu','co','mn','cr','ti'].forEach(k=>{ S[k]=p.ox[k]||0; $(k).value=S[k]; $(k+'V').textContent=S[k]+'%'; });
+  $('body').value=p.body; $('base').value=p.base;
+  setSeg('temp',p.temp); setSeg('atm',p.atm); setSeg('kiln',p.kiln); setSeg('cool',p.cool);
+  render();
+  const li=document.createElement('li'); li.className=''; li.textContent='【已載入預設】'+p.msg;
+  $('notes').prepend(li);
+  document.querySelector('nav button[data-tab=sim]').click();
+  dlg.close(); window.scrollTo({top:0,behavior:'smooth'});
+}
+$('jpgrid').innerHTML=JPWARES.map((g,i)=>`
+ <div class="g" onclick="openJ(${i})">
+   <div class="c" style="background:linear-gradient(160deg,${mixc(g.c,'#ffffff',0.15)},${g.c} 60%,${mixc(g.c,'#000000',0.15)})"></div>
+   <div class="t"><b>${g.n}</b><p>${g.pl}・${g.fire.split('・')[0]}</p></div>
+ </div>`).join('');
+window.openJ=i=>{
+  const g=JPWARES[i];
+  $('dlgC').style.background=`linear-gradient(160deg,${mixc(g.c,'#ffffff',0.15)},${g.c} 60%,${mixc(g.c,'#000000',0.2)})`;
+  $('dlgT').textContent=g.n+'　'+g.pl;
+  $('dlgTable').innerHTML=[['坯土',g.body],['燒成',g.fire],['關鍵化學',g.chem],['備註',g.note]]
+    .map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+  const lb=$('dlgLoad');
+  if(JPPRESETS[g.n]){ lb.style.display='inline-block'; lb.onclick=()=>applyPreset(g.n); }
+  else lb.style.display='none';
+  dlg.showModal();
+};
+
+/* ---------- 市售品牌釉 ---------- */
+function renderBrands(mk){
+  $('brandgrid').innerHTML=BRANDS.map((g,i)=> (mk==='all'||g.mk===mk)?`
+   <div class="g" onclick="openB(${i})">
+     <div class="c" style="background:linear-gradient(160deg,${mixc(g.c,'#ffffff',0.15)},${g.c} 60%,${mixc(g.c,'#000000',0.15)})"></div>
+     <div class="t"><b>${g.n}</b><p>${g.brand}・${g.fire}</p></div>
+   </div>`:'').join('');
+}
+window.openB=i=>{
+  $('dlgLoad').style.display='none';
+  const g=BRANDS[i];
+  $('dlgC').style.background=`linear-gradient(160deg,${mixc(g.c,'#ffffff',0.15)},${g.c} 60%,${mixc(g.c,'#000000',0.2)})`;
+  $('dlgT').textContent=`${g.n}`;
+  $('dlgTable').innerHTML=[['廠牌',g.brand],['燒成',g.fire],['呈色來源',g.col],['特性化學',g.chem],['深色坯表現',g.dark],['代表色',g.c.toUpperCase()]]
+    .map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+  dlg.showModal();
+};
+$('mkfilter').querySelectorAll('button').forEach(bt=>bt.onclick=()=>{
+  $('mkfilter').querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+  bt.classList.add('on'); renderBrands(bt.dataset.v);
+});
+renderBrands('all');
+
+/* ---------- 分頁 ---------- */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('show'));
+  b.classList.add('active'); $(b.dataset.tab).classList.add('show');
+});
+
+render(); renderBlend();
+</script>
+</body>
+</html>
